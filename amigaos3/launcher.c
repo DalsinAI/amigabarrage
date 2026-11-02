@@ -15,7 +15,9 @@ int main(void)
     if (launch_dir != 0)
         old_dir = CurrentDir(launch_dir);
 
-    result = SystemTags((CONST_STRPTR)"Barrage", TAG_DONE);
+    /* Start windowed until the full-screen retained-surface path is qualified.
+     * The in-game F key still toggles full-screen. */
+    result = SystemTags((CONST_STRPTR)"Barrage -w", TAG_DONE);
 
     if (launch_dir != 0) {
         CurrentDir(old_dir);

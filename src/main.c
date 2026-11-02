@@ -389,18 +389,18 @@ static void game_finalize( int check_chart )
 	
 static void main_loop()
 {
-	const Uint8 *keystate;
 	int x = 0, y = 0;
 	int cur_ticks, prev_ticks;
 	int ms;
 	int buttonstate;
 	int reload_clicked = 0;
-	int reload_key = SDL_SCANCODE_SPACE;
 	int frame_time = 0, frames = 0;
 	Vector dest;
 	int quit = 0;
 	int input_delay = 0; /* while >0 no clicks are accepted */
 	SDL_Keymod modstate = KMOD_NONE;
+	SDL_Event event;
+	int key_escape, key_space, key_return, key_f, key_s, key_tab;
 	int shot_type;
 	
 	frame_time = SDL_GetTicks(); /* for frame rate */
@@ -410,15 +410,32 @@ static void main_loop()
 	cur_ticks = prev_ticks = SDL_GetTicks();
 	while ( !quit ) {
 	  if (delay>0) SDL_Delay(delay);
+
+		key_escape = key_space = key_return = 0;
+		key_f = key_s = key_tab = 0;
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_QUIT) {
+				quit = 1;
+			} else if (event.type == SDL_KEYDOWN && !event.key.repeat) {
+				switch (event.key.keysym.sym) {
+					case SDLK_ESCAPE: key_escape = 1; break;
+					case SDLK_SPACE: key_space = 1; break;
+					case SDLK_RETURN:
+					case SDLK_KP_ENTER: key_return = 1; break;
+					case SDLK_f: key_f = 1; break;
+					case SDLK_s: key_s = 1; break;
+					case SDLK_TAB: key_tab = 1; break;
+					default: break;
+				}
+			}
+		}
 	  
 		prev_ticks = cur_ticks;
 		cur_ticks = SDL_GetTicks();
 		ms = cur_ticks - prev_ticks;
 
 		/* gather events in queue and get mouse/keyboard states */
-		SDL_PumpEvents();
 		buttonstate = SDL_GetMouseState( &x, &y );
-		keystate = SDL_GetKeyboardState( 0 );
 		modstate = SDL_GetModState();
 	
 		/* update the battefield (particles,units,new cannonfodder) */
@@ -472,9 +489,7 @@ static void main_loop()
 		switch ( state ) {
 		    case STATE_HELP:
 		    case STATE_CHART:
-			if ( keystate[SDL_SCANCODE_ESCAPE] ||
-			     keystate[SDL_SCANCODE_SPACE] ||
-			     keystate[SDL_SCANCODE_RETURN] ||
+			if ( key_escape || key_space || key_return ||
 			     buttonstate ) {
 				input_delay = INPUT_DELAY;
 				state = STATE_MENU;
@@ -484,7 +499,7 @@ static void main_loop()
 			break;
 		    case STATE_GAME:
 			/* abort game */
-			if ( keystate[SDL_SCANCODE_ESCAPE] ) {
+			if ( key_escape ) {
 				game_finalize( 0/*don't check highscore*/ );
 				cur_ticks = prev_ticks = SDL_GetTicks(); /* reset timer */
 				state = STATE_CHART;
@@ -508,7 +523,7 @@ static void main_loop()
 					bfield_fire_gun( shot_type, &dest, 60, 0 );
 			}
 			/* reload */
-			if ( buttonstate & SDL_BUTTON(3) || keystate[reload_key] ) {
+			if ( buttonstate & SDL_BUTTON(3) || key_space ) {
 				if ( !reload_clicked ) {
 					reload_clicked = 1;
 					bfield_reload_gun();
@@ -518,7 +533,7 @@ static void main_loop()
 				reload_clicked = 0;
 			break;
 		    case STATE_MENU:
-			if ( keystate[SDL_SCANCODE_ESCAPE] )
+			if ( key_escape )
 				quit = 1;
 			if ( buttonstate & SDL_BUTTON(1) ) {
 				switch (menu_handle_click( &main_menu, x, y ) ) {
@@ -545,7 +560,7 @@ static void main_loop()
 		}
 		
 		/* switch fullscreen/window anywhere */
-		if ( keystate[SDL_SCANCODE_F] ) {
+		if ( key_f ) {
 			fullscreen = !fullscreen;
 			if (video_set_mode(fullscreen) < 0) {
 				fprintf(stderr, "Fullscreen switch failed: %s\n", SDL_GetError());
@@ -554,12 +569,12 @@ static void main_loop()
 			input_delay = INPUT_DELAY;
 		}
 		/* enabe/disable sound anywhere */
-		if ( keystate[SDL_SCANCODE_S] && audio_on != -1 ) {
+		if ( key_s && audio_on != -1 ) {
 			audio_on = !audio_on;
 			input_delay = INPUT_DELAY;
 		}
 		/* take screenshots anywhere */
-		if ( keystate[SDL_SCANCODE_TAB] )
+		if ( key_tab )
 			take_screenshot();
 	}
 

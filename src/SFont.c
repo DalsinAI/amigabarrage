@@ -47,6 +47,7 @@ Uint32 GetPixel(SDL_Surface *Surface, Sint32 X, Sint32 Y)
 void InitFont2(SFont_FontInfo *Font)
 {
     int x = 0, i = 0;
+    Uint32 marker;
 
     if ( Font->Surface==NULL ) {
 	printf("The font has not been loaded!\n");
@@ -55,10 +56,15 @@ void InitFont2(SFont_FontInfo *Font)
 
     if (SDL_MUSTLOCK(Font->Surface)) SDL_LockSurface(Font->Surface);
 
+    /* The BMP is authored in a 16-bit colour space, where the magenta
+     * separator may decode as 254,2,254. Using the sheet's own marker pixel
+     * survives conversion to the 32-bit SDL2 window format. */
+    marker = GetPixel(Font->Surface, 0, 0);
+
     while ( x < Font->Surface->w ) {
-	if(GetPixel(Font->Surface,x,0)==SDL_MapRGB(Font->Surface->format,255,0,255)) { 
+	if(GetPixel(Font->Surface,x,0)==marker) {
     	    Font->CharPos[i++]=x;
-    	    while (( x < Font->Surface->w-1) && (GetPixel(Font->Surface,x,0)==SDL_MapRGB(Font->Surface->format,255,0,255)))
+	    while (( x < Font->Surface->w-1) && (GetPixel(Font->Surface,x,0)==marker))
 		x++;
 	    Font->CharPos[i++]=x;
 	}
