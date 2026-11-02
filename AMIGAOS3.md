@@ -1,4 +1,4 @@
-# Barrage for AmigaOS 3
+# Barrage for AmigaOS 3 — RC1
 
 This port targets AmigaOS 3.2 on a 68040/68881 system. It uses the existing
 AmigaChrome SDL2 and SDL2_mixer modules; SDL's software window surface remains
@@ -12,9 +12,10 @@ make -f Makefile.amigaos3 \
 amigaos3/package.sh
 ```
 
-The package is written to `Barrage-AmigaOS3` by default. Copy that drawer to
-the Amiga and double-click **Start Game**. The package includes a drawer icon
-and a native Workbench start icon; it does not require IconX or a shell script.
+The package is written to `Barrage-AmigaOS3-RC1` by default. Copy that drawer to
+the Amiga and double-click **Start Game** for the qualified windowed mode, or
+**Start Full Screen** to exercise the retained full-screen presenter. Both are
+native Workbench tools; the package does not require IconX or a shell script.
 
 ## Controls
 
@@ -22,7 +23,7 @@ and a native Workbench start icon; it does not require IconX or a shell script.
 - Left mouse button: large grenade
 - Middle mouse button or Ctrl + left mouse button: small grenade
 - Right mouse button or Space: reload
-- F: toggle full-screen/window mode
+- F10 (or F): toggle full-screen/window mode
 - S: toggle sound
 - Tab: save a screenshot
 - Escape: leave the current game or quit from the menu

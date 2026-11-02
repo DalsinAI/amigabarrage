@@ -1,4 +1,5 @@
 /Game
 /build/
-/Barrage-AmigaOS3/
-/Barrage-AmigaOS3.info
+/Barrage-AmigaOS3*/
+/Barrage-AmigaOS3*.info
+/*.lha

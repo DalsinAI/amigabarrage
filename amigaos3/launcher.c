@@ -2,6 +2,10 @@
 #include <dos/dostags.h>
 #include <proto/dos.h>
 
+#ifndef BARRAGE_COMMAND
+#define BARRAGE_COMMAND "Barrage -w"
+#endif
+
 /* Native Workbench launcher: no IconX, Execute or shell script required. */
 int main(void)
 {
@@ -15,9 +19,7 @@ int main(void)
     if (launch_dir != 0)
         old_dir = CurrentDir(launch_dir);
 
-    /* Start windowed until the full-screen retained-surface path is qualified.
-     * The in-game F key still toggles full-screen. */
-    result = SystemTags((CONST_STRPTR)"Barrage -w", TAG_DONE);
+    result = SystemTags((CONST_STRPTR)BARRAGE_COMMAND, TAG_DONE);
 
     if (launch_dir != 0) {
         CurrentDir(old_dir);

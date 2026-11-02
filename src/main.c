@@ -422,7 +422,8 @@ static void main_loop()
 					case SDLK_SPACE: key_space = 1; break;
 					case SDLK_RETURN:
 					case SDLK_KP_ENTER: key_return = 1; break;
-					case SDLK_f: key_f = 1; break;
+					case SDLK_f:
+					case SDLK_F10: key_f = 1; break;
 					case SDLK_s: key_s = 1; break;
 					case SDLK_TAB: key_tab = 1; break;
 					default: break;

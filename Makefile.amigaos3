@@ -11,6 +11,7 @@ OBJDIR   := build/amigaos3/obj
 OUTDIR   := build/amigaos3
 PROGRAM  := $(OUTDIR)/Barrage
 LAUNCHER := $(OUTDIR)/BarrageLauncher
+FULLSCREEN_LAUNCHER := $(OUTDIR)/BarrageFullscreen
 
 SOURCES := \
 	src/main.c \
@@ -27,7 +28,7 @@ OBJECTS := $(SOURCES:src/%.c=$(OBJDIR)/%.o)
 
 CPPFLAGS := -Isrc -I$(SYSROOT)/include/SDL2 \
 	-DAMIGAOS3 -DAUDIO_ENABLED \
-	-DVERSION=\"1.0.4-amiga1\" -DSRC_DIR=\"PROGDIR:data\"
+	-DVERSION=\"1.0.4-amiga1-rc1\" -DSRC_DIR=\"PROGDIR:data\"
 CFLAGS := -std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter \
 	-m68040 -m68881 -noixemul -fno-delete-null-pointer-checks
 LDFLAGS := -m68040 -m68881 -noixemul -L$(SYSROOT)/lib
@@ -35,13 +36,17 @@ LDLIBS := -lSDL2_mixer -lSDL2 -lm -lamiga
 
 .PHONY: all clean
 
-all: $(PROGRAM) $(LAUNCHER)
+all: $(PROGRAM) $(LAUNCHER) $(FULLSCREEN_LAUNCHER)
 
 $(PROGRAM): $(OBJECTS) | $(OUTDIR)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
 $(LAUNCHER): amigaos3/launcher.c | $(OUTDIR)
 	$(CC) -std=gnu99 -O2 -Wall -Wextra -m68040 -noixemul -o "$@" $< -lamiga
+
+$(FULLSCREEN_LAUNCHER): amigaos3/launcher.c | $(OUTDIR)
+	$(CC) -std=gnu99 -O2 -Wall -Wextra -m68040 -noixemul \
+		-DBARRAGE_COMMAND=\"Barrage\" -o "$@" $< -lamiga
 
 $(OBJDIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
