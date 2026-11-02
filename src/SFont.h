@@ -26,6 +26,8 @@ typedef struct {
 	int h;
 } SFont_FontInfo;
 
+Uint32 GetPixel(SDL_Surface *Surface, Sint32 X, Sint32 Y);
+
 // Initializes the font
 // Font: this contains the suface with the font.
 //       The font must be loaded before using this function.

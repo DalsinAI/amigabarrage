@@ -25,13 +25,14 @@
 #include "menu.h"
 
 SDL_Surface *screen;
+static SDL_Window *window;
 #define BITDEPTH 16
 
 int delay = 0;
 int fullscreen = 1;
 int audio_on = 1;
 int audio_freq = 22050;
-int audio_format = AUDIO_S16LSB;
+int audio_format = AUDIO_S16SYS;
 int audio_channels = 2;
 int audio_mix_channel_count = 0;
 
@@ -71,6 +72,30 @@ enum {
 };
 int state = STATE_MENU; /* state of game */
 
+void video_present(void)
+{
+	if (window != NULL && SDL_UpdateWindowSurface(window) < 0)
+		fprintf(stderr, "SDL_UpdateWindowSurface: %s\n", SDL_GetError());
+}
+
+static int video_set_mode(int want_fullscreen)
+{
+	Uint32 flags = want_fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
+
+	if (window == NULL) {
+		window = SDL_CreateWindow("Barrage", SDL_WINDOWPOS_CENTERED,
+			SDL_WINDOWPOS_CENTERED, 640, 480, flags);
+		if (window == NULL)
+			return -1;
+	}
+	else if (SDL_SetWindowFullscreen(window, flags) < 0) {
+		return -1;
+	}
+
+	screen = SDL_GetWindowSurface(window);
+	return screen != NULL ? 0 : -1;
+}
+
 /* Lets try to get name from environment */
 static void set_player_name_from_env() 
 {
@@ -92,10 +117,10 @@ static void fade_screen( int type, int time )
 
 	/* get screen contents */
 	buffer = SDL_CreateRGBSurface( 
-			SDL_SWSURFACE, screen->w, screen->h, 
+			0, screen->w, screen->h,
 			screen->format->BitsPerPixel,
-			screen->format->Rmask, screen->format->Bmask,
-			screen->format->Gmask, screen->format->Amask );
+			screen->format->Rmask, screen->format->Gmask,
+			screen->format->Bmask, screen->format->Amask );
 	if ( buffer == 0 ) return;
 	SDL_BlitSurface( screen, 0, buffer, 0 );
 
@@ -122,33 +147,27 @@ static void fade_screen( int type, int time )
 		
 		/* update */
 		SDL_FillRect( screen, 0, 0x0 );
-		SDL_SetAlpha( buffer, SDL_SRCALPHA | SDL_RLEACCEL, (int)alpha );
+		barrage_set_alpha( buffer, 1, (int)alpha );
 		SDL_BlitSurface( buffer, 0, screen, 0 );
-		SDL_Flip(screen);
+		video_present();
 		if (delay>0) SDL_Delay(10);
 	}
 
 	/* update screen */
-	SDL_SetAlpha( buffer, 0, 0 );
+	barrage_set_alpha( buffer, 0, 255 );
 	if ( type == FADE_IN )
 		SDL_BlitSurface( buffer, 0, screen, 0 );
 	else
 		SDL_FillRect( screen, 0, 0x0 );
-	SDL_Flip(screen);
+	video_present();
 	SDL_FreeSurface( buffer );
 }
 
-static int all_filter( const SDL_Event *event ) { return 0; }
-
 static void wait_for_input( void )
 {
-	SDL_EventFilter filter;
 	SDL_Event event;
 	
-	filter = SDL_GetEventFilter();
-	SDL_SetEventFilter(all_filter);
-	while ( SDL_PollEvent(&event) ); /* clear queue */
-	SDL_SetEventFilter(filter);
+	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 	
 	while ( 1 ) {
 		SDL_WaitEvent(&event);
@@ -162,17 +181,17 @@ static void wait_for_input( void )
 
 static void draw_score()
 {
-	char str[8];
+	char str[16];
 
 	if ( player_score < 0 ) player_score = 0;
-	snprintf( str, 8, "%06i", player_score ); str[7] = 0;
+	snprintf( str, sizeof(str), "%06i", player_score );
 	SDL_WriteText( ft_main, screen, 10, 10, str );
 }
 
 static void draw_time( int ms )
 {
 	static int old_secs = 0;
-	char str[8];
+	char str[16];
 	int secs = game_end - time(0);
 	
 	/* blink timer when time is running out in such a way
@@ -189,7 +208,7 @@ static void draw_time( int ms )
 	}
 	
 	if ( !timer_visible ) return;
-	snprintf( str, 8, "%i:%02i", secs/60, secs%60 ); str[7] = 0;
+	snprintf( str, sizeof(str), "%i:%02i", secs/60, secs%60 );
 	SDL_WriteTextRight( ft_main, screen, 630, 10, str );
 }
 
@@ -352,7 +371,7 @@ static void game_finalize( int check_chart )
 			sprintf( buf, "Topgunner #%i", rank+1 );
 			SDL_WriteTextCenter( ft_chart, screen, 320, 230, buf );
 			SDL_WriteTextCenter( ft_chart, screen, 320, 290, "Sign here:" );
-			SDL_Flip(screen);
+			video_present();
 			SDL_EnterTextCenter( ft_chart, screen, 320, 320, 18, player_name );
 			chart_add_entry( player_name, player_score );
 		}
@@ -361,7 +380,7 @@ static void game_finalize( int check_chart )
 					ft_chart, screen, 320, 290, "Not enough to be a topgunner!" );
 			SDL_WriteTextCenter( 
 					ft_chart, screen, 320, 320, "Go, try again! Dismissed." );
-			SDL_Flip(screen);
+			video_present();
 			wait_for_input();
 		}
 		chart_save();
@@ -370,38 +389,54 @@ static void game_finalize( int check_chart )
 	
 static void main_loop()
 {
-	Uint8 *keystate, empty_keys[SDLK_LAST];
 	int x = 0, y = 0;
 	int cur_ticks, prev_ticks;
 	int ms;
 	int buttonstate;
 	int reload_clicked = 0;
-	int reload_key = SDLK_SPACE;
 	int frame_time = 0, frames = 0;
 	Vector dest;
 	int quit = 0;
 	int input_delay = 0; /* while >0 no clicks are accepted */
-	SDLMod modstate = 0;
+	SDL_Keymod modstate = KMOD_NONE;
+	SDL_Event event;
+	int key_escape, key_space, key_return, key_f, key_s, key_tab;
 	int shot_type;
 	
 	frame_time = SDL_GetTicks(); /* for frame rate */
-	memset( empty_keys, 0, sizeof( empty_keys ) ); /* to block input */
-		
 	state = STATE_MENU;
 	bfield_init( BFIELD_DEMO, &gun_base, &gun_img_offset );
 	
 	cur_ticks = prev_ticks = SDL_GetTicks();
 	while ( !quit ) {
 	  if (delay>0) SDL_Delay(delay);
+
+		key_escape = key_space = key_return = 0;
+		key_f = key_s = key_tab = 0;
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_QUIT) {
+				quit = 1;
+			} else if (event.type == SDL_KEYDOWN && !event.key.repeat) {
+				switch (event.key.keysym.sym) {
+					case SDLK_ESCAPE: key_escape = 1; break;
+					case SDLK_SPACE: key_space = 1; break;
+					case SDLK_RETURN:
+					case SDLK_KP_ENTER: key_return = 1; break;
+					case SDLK_f:
+					case SDLK_F10: key_f = 1; break;
+					case SDLK_s: key_s = 1; break;
+					case SDLK_TAB: key_tab = 1; break;
+					default: break;
+				}
+			}
+		}
 	  
 		prev_ticks = cur_ticks;
 		cur_ticks = SDL_GetTicks();
 		ms = cur_ticks - prev_ticks;
 
 		/* gather events in queue and get mouse/keyboard states */
-		SDL_PumpEvents();
 		buttonstate = SDL_GetMouseState( &x, &y );
-		keystate = SDL_GetKeyState( 0 );
 		modstate = SDL_GetModState();
 	
 		/* update the battefield (particles,units,new cannonfodder) */
@@ -437,7 +472,7 @@ static void main_loop()
 		draw_cursor( screen, x, y );
 		
 		/* udpate screen */
-		SDL_Flip(screen); frames++;
+		video_present(); frames++;
 
 		/* end game? */
 		if ( state == STATE_GAME )
@@ -455,10 +490,7 @@ static void main_loop()
 		switch ( state ) {
 		    case STATE_HELP:
 		    case STATE_CHART:
-			if ( keystate[SDLK_ESCAPE] ||
-			     keystate[SDLK_SPACE] || 
-			     keystate[SDLK_RETURN] || 
-			     keystate[SDLK_SPACE] ||
+			if ( key_escape || key_space || key_return ||
 			     buttonstate ) {
 				input_delay = INPUT_DELAY;
 				state = STATE_MENU;
@@ -468,7 +500,7 @@ static void main_loop()
 			break;
 		    case STATE_GAME:
 			/* abort game */
-			if ( keystate[SDLK_ESCAPE] ) {
+			if ( key_escape ) {
 				game_finalize( 0/*don't check highscore*/ );
 				cur_ticks = prev_ticks = SDL_GetTicks(); /* reset timer */
 				state = STATE_CHART;
@@ -492,7 +524,7 @@ static void main_loop()
 					bfield_fire_gun( shot_type, &dest, 60, 0 );
 			}
 			/* reload */
-			if ( buttonstate & SDL_BUTTON(3) || keystate[reload_key] ) {
+			if ( buttonstate & SDL_BUTTON(3) || key_space ) {
 				if ( !reload_clicked ) {
 					reload_clicked = 1;
 					bfield_reload_gun();
@@ -502,7 +534,7 @@ static void main_loop()
 				reload_clicked = 0;
 			break;
 		    case STATE_MENU:
-			if ( keystate[SDLK_ESCAPE] )
+			if ( key_escape )
 				quit = 1;
 			if ( buttonstate & SDL_BUTTON(1) ) {
 				switch (menu_handle_click( &main_menu, x, y ) ) {
@@ -529,19 +561,21 @@ static void main_loop()
 		}
 		
 		/* switch fullscreen/window anywhere */
-		if ( keystate[SDLK_f] ) {
+		if ( key_f ) {
 			fullscreen = !fullscreen;
-			SDL_SetVideoMode( 640, 480, BITDEPTH, 
-				(fullscreen?SDL_FULLSCREEN:0) | SDL_HWSURFACE | SDL_DOUBLEBUF );
+			if (video_set_mode(fullscreen) < 0) {
+				fprintf(stderr, "Fullscreen switch failed: %s\n", SDL_GetError());
+				fullscreen = !fullscreen;
+			}
 			input_delay = INPUT_DELAY;
 		}
 		/* enabe/disable sound anywhere */
-		if ( keystate[SDLK_s] && audio_on != -1 ) {
+		if ( key_s && audio_on != -1 ) {
 			audio_on = !audio_on;
 			input_delay = INPUT_DELAY;
 		}
 		/* take screenshots anywhere */
-		if ( keystate[SDLK_TAB] )
+		if ( key_tab )
 			take_screenshot();
 	}
 
@@ -585,14 +619,11 @@ int main( int argc, char **argv )
     printf( "Disabling sound and continuing...\n" );
     audio_on = -1;
   }
-  if ( SDL_SetVideoMode( 640, 480, BITDEPTH, 
-			 (fullscreen?SDL_FULLSCREEN:0) | SDL_HWSURFACE | SDL_DOUBLEBUF ) < 0 ) {
+  if ( video_set_mode( fullscreen ) < 0 ) {
     printf( "%s\n", SDL_GetError() );
     exit(1);
   }
-  screen = SDL_GetVideoSurface();
   atexit(SDL_Quit);
-  SDL_WM_SetCaption( "LBarrage", 0 );
 	
 #ifdef AUDIO_ENABLED	
   if ( Mix_OpenAudio( audio_freq, audio_format, audio_channels, 1024 ) < 0 ) {

@@ -21,6 +21,20 @@ ChartEntry chart[CHART_SIZE+1]; /* extra space for new entry */
 
 #define CHART_FILE ".barrage.hscr"
 
+static void chart_file_path(char *path, size_t size)
+{
+#ifdef AMIGAOS3
+	snprintf(path, size, "PROGDIR:barrage.hscr");
+#else
+	const char *home = getenv("HOME");
+	if (home != NULL)
+		snprintf(path, size, "%s/%s", home, CHART_FILE);
+	else
+		snprintf(path, size, "%s", CHART_FILE);
+#endif
+	path[size - 1] = 0;
+}
+
 static void chart_reset()
 {
 	int i;
@@ -38,7 +52,7 @@ void chart_load()
 	FILE *file;
 
 	chart_reset();
-	snprintf( buf, 128, "%s/%s", getenv("HOME"), CHART_FILE ); buf[127] = 0;
+	chart_file_path(buf, sizeof(buf));
 	file = fopen( buf, "r" );
 	if ( file == 0 ) {
 		printf( "couldn't read highscore file: %s\n", buf );
@@ -63,7 +77,7 @@ void chart_save()
 	int i;
 	FILE *file;
 
-	snprintf( path, 128, "%s/%s", getenv("HOME"), CHART_FILE ); path[127] = 0;
+	chart_file_path(path, sizeof(path));
 	file = fopen( path, "w" );
 	if ( file == 0 ) {
 		printf( "couldn't open highscore file: %s\n", path );

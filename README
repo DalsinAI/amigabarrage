@@ -26,7 +26,8 @@ console:
                   may have impact on the frame rate depending on the
                   speed of your CPU
   -w              don't start in fullscreen but in windowed mode; you
-                  can switch this anytime while playing by pressing 'f'
+                  can switch this anytime while playing by pressing F10
+                  (the original 'f' shortcut is also retained)
   -s              play silently, thus don't play any sounds; this can
                   also be switched by pressing 's' while playing
 

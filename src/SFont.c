@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern void video_present(void);
+
 SFont_FontInfo InternalFont;
 
 Uint32 GetPixel(SDL_Surface *Surface, Sint32 X, Sint32 Y)
@@ -45,6 +47,7 @@ Uint32 GetPixel(SDL_Surface *Surface, Sint32 X, Sint32 Y)
 void InitFont2(SFont_FontInfo *Font)
 {
     int x = 0, i = 0;
+    Uint32 marker;
 
     if ( Font->Surface==NULL ) {
 	printf("The font has not been loaded!\n");
@@ -53,10 +56,15 @@ void InitFont2(SFont_FontInfo *Font)
 
     if (SDL_MUSTLOCK(Font->Surface)) SDL_LockSurface(Font->Surface);
 
+    /* The BMP is authored in a 16-bit colour space, where the magenta
+     * separator may decode as 254,2,254. Using the sheet's own marker pixel
+     * survives conversion to the 32-bit SDL2 window format. */
+    marker = GetPixel(Font->Surface, 0, 0);
+
     while ( x < Font->Surface->w ) {
-	if(GetPixel(Font->Surface,x,0)==SDL_MapRGB(Font->Surface->format,255,0,255)) { 
+	if(GetPixel(Font->Surface,x,0)==marker) {
     	    Font->CharPos[i++]=x;
-    	    while (( x < Font->Surface->w-1) && (GetPixel(Font->Surface,x,0)==SDL_MapRGB(Font->Surface->format,255,0,255)))
+	    while (( x < Font->Surface->w-1) && (GetPixel(Font->Surface,x,0)==marker))
 		x++;
 	    Font->CharPos[i++]=x;
 	}
@@ -65,7 +73,7 @@ void InitFont2(SFont_FontInfo *Font)
     if (SDL_MUSTLOCK(Font->Surface)) SDL_UnlockSurface(Font->Surface);
 
     Font->h=Font->Surface->h;
-    SDL_SetColorKey(Font->Surface, SDL_SRCCOLORKEY, GetPixel(Font->Surface, 0, Font->Surface->h-1));
+    SDL_SetColorKey(Font->Surface, SDL_TRUE, GetPixel(Font->Surface, 0, Font->Surface->h-1));
 }
 
 void InitFont(SDL_Surface *Font)
@@ -149,15 +157,12 @@ void XCenteredString(SDL_Surface *Surface, int y, char *text)
 void SFont_InternalInput( SDL_Surface *Dest, SFont_FontInfo *Font, int x, int y, int PixelWidth, char *text)
 {
     SDL_Event event;
-    int ch=-1,blink=0;
-    long blinktimer=0;
+    int done=0,blink=0;
+    Uint32 blinktimer=0;
     SDL_Surface *Back;
     SDL_Rect rect;
-    int previous;
-//    int ofs=(text[0]-33)*2+1;
-//    int leftshift=(Font->CharPos[ofs]-Font->CharPos[ofs-1])/2;
-    
-    Back = SDL_AllocSurface(Dest->flags,
+
+    Back = SDL_CreateRGBSurface(0,
     			    Dest->w,
     			    Font->h,
     			    Dest->format->BitsPerPixel,
@@ -170,28 +175,36 @@ void SFont_InternalInput( SDL_Surface *Dest, SFont_FontInfo *Font, int x, int y,
     rect.h=Font->Surface->h;
     SDL_BlitSurface(Dest, &rect, Back, NULL);
     XCenteredString2(Dest,Font,/*x,*/y,text);
-    SDL_UpdateRects(Dest, 1, &rect);
+    video_present();
         
     // start input
-    previous=SDL_EnableUNICODE(1);
+    SDL_StartTextInput();
     blinktimer=SDL_GetTicks();
-    while (ch!=SDLK_RETURN) {
-	if (event.type==SDL_KEYDOWN) {
-	    ch=event.key.keysym.unicode;
-	    if (((ch>31)||(ch=='\b')) && (ch<128)) {
-		if ((ch=='\b')&&(strlen(text)>0))
-		    text[strlen(text)-1]='\0';
-		else if (ch!='\b')
-		    sprintf(text + strlen(text),"%c",ch);
-		/* quick hack to use limited number of characters rather than
-		 * pixels - Michael Speck */
-	        if (strlen(text)/*TextWidth2(Font,text)*/>PixelWidth) 
-			text[PixelWidth/*strlen(text)*/]='\0';
-		SDL_BlitSurface( Back, NULL, Dest, &rect);
-		XCenteredString2(Dest, Font, /*x,*/ y, text);
-		SDL_UpdateRects(Dest, 1, &rect);
-//		printf("%s ## %d\n",text,strlen(text));
-		SDL_WaitEvent(&event);
+    while (!done) {
+	while (SDL_PollEvent(&event)) {
+	    int changed = 0;
+	    if (event.type == SDL_QUIT) {
+		done = 1;
+	    } else if (event.type == SDL_KEYDOWN) {
+		if (event.key.keysym.sym == SDLK_RETURN ||
+		    event.key.keysym.sym == SDLK_KP_ENTER) {
+		    done = 1;
+		} else if (event.key.keysym.sym == SDLK_BACKSPACE && strlen(text) > 0) {
+		    text[strlen(text)-1] = '\0';
+		    changed = 1;
+		}
+	    } else if (event.type == SDL_TEXTINPUT &&
+		       (unsigned char)event.text.text[0] >= 32 &&
+		       (unsigned char)event.text.text[0] < 128 &&
+		       strlen(text) < (size_t)PixelWidth) {
+		text[strlen(text)+1] = '\0';
+		text[strlen(text)] = event.text.text[0];
+		changed = 1;
+	    }
+	    if (changed) {
+		SDL_BlitSurface(Back, NULL, Dest, &rect);
+		XCenteredString2(Dest, Font, y, text);
+		video_present();
 	    }
 	}
 	if (SDL_GetTicks()>blinktimer) {
@@ -199,21 +212,18 @@ void SFont_InternalInput( SDL_Surface *Dest, SFont_FontInfo *Font, int x, int y,
 	    blinktimer=SDL_GetTicks()+500;
 	    if (blink) {
 		PutString2(Dest, Font, x+TextWidth2(Font,text)/2, y, "|");
-		SDL_UpdateRects(Dest, 1, &rect);
-//		SDL_UpdateRect(Dest, x+TextWidth2(Font,text), y, TextWidth2(Font,"|"), Font->Surface->h);
+		video_present();
 	    } else {
 		SDL_BlitSurface( Back, NULL, Dest, &rect);
 		XCenteredString2(Dest, Font, /*x,*/ y, text);
-		SDL_UpdateRects(Dest, 1, &rect);
-//		SDL_UpdateRect(Dest, x-(Font->CharPos[ofs]-Font->CharPos[ofs-1])/2, y, PixelWidth, Font->Surface->h);
+		video_present();
 	    }
 	}
 	SDL_Delay(1);
-	SDL_PollEvent(&event);
     }
     text[strlen(text)]='\0';
     SDL_FreeSurface(Back);
-    SDL_EnableUNICODE(previous);  //restore the previous state
+    SDL_StopTextInput();
 }
 
 void SFont_Input2( SDL_Surface *Dest, SFont_FontInfo *Font, int x, int y, int PixelWidth, char *text)
