@@ -75,7 +75,7 @@ void shots_draw( SDL_Surface *dest, int camera_x, int camera_y )
 		drect.x = sx - camera_x; drect.y = sy - camera_y;
 		srect.w = drect.w = shot->w;
 		srect.h = drect.h = shot->h;
-		SDL_SetAlpha( shot->img, 0, 0 );
+		barrage_set_alpha( shot->img, 0, 255 );
 		SDL_BlitSurface( shot->img, &srect, dest, &drect );
 
 		/* shadow */
@@ -87,7 +87,7 @@ void shots_draw( SDL_Surface *dest, int camera_x, int camera_y )
 			drect.y = shot->pos.y - (shot->h>>1);
 			srect.w = drect.w = shot->w;
 			srect.h = drect.h = shot->h;
-			SDL_SetAlpha( shot->img, SDL_SRCALPHA, 128 );
+			barrage_set_alpha( shot->img, 1, 128 );
 			SDL_BlitSurface( shot->img, &srect, dest, &drect );
 		}
 		

@@ -55,8 +55,8 @@ extern int audio_on;
 
 extern SDL_Surface *screen; /* display */
 
-#define SET_ALPHA( surf, alpha ) SDL_SetAlpha( surf, SDL_SRCALPHA | SDL_RLEACCEL, alpha )
-#define SET_CKEY( surf, ckey ) SDL_SetColorKey( surf, SDL_SRCCOLORKEY, ckey )
+#define SET_ALPHA( surf, alpha ) barrage_set_alpha( surf, 1, alpha )
+#define SET_CKEY( surf, ckey ) SDL_SetColorKey( surf, SDL_TRUE, ckey )
 
 static void data_free_cursor( SDL_Cursor **cursor )
 {
@@ -86,7 +86,7 @@ static SDL_Cursor* data_create_cursor( int width, int height, int hot_x, int hot
 		/* create byte */
 		for (i = 7; i >= 0; i--) {
 			switch ( source[j + i] ) {
-				case 'b': data_byte += pot;
+				case 'b': data_byte += pot; /* fall through */
 				case 'w': mask_byte += pot; break;
 			}
 			pot *= 2;
@@ -116,10 +116,10 @@ static SDL_Surface *data_create_image( int w, int h )
 	SDL_Surface *surf = 0;
 	printf( "creating %ix%i bitmap ... ", w, h );
 	surf = SDL_CreateRGBSurface( 
-			SDL_SWSURFACE, w, h, 
+			0, w, h,
 			screen->format->BitsPerPixel,
-			screen->format->Rmask, screen->format->Bmask,
-			screen->format->Gmask, screen->format->Amask );
+			screen->format->Rmask, screen->format->Gmask,
+			screen->format->Bmask, screen->format->Amask );
 	if ( surf == 0 ) {
 		printf( "%s\n", SDL_GetError() );
 		exit(1);
@@ -136,7 +136,7 @@ static SDL_Surface *data_load_image( char *name )
 	snprintf( path, 128, "%s/gfx/%s", SRC_DIR, name ); path[127] = 0;
 	printf( "loading %s ... ", path );
 	tmp = SDL_LoadBMP( path );
-	if ( tmp == 0 || (surf = SDL_DisplayFormat(tmp)) == 0 ) {
+	if ( tmp == 0 || (surf = SDL_ConvertSurface(tmp, screen->format, 0)) == 0 ) {
 		printf( "%s\n", SDL_GetError() );
 		data_free_image( &tmp );
 		exit(1);
@@ -212,7 +212,7 @@ void data_load()
 	ammo_w = img_ammo->w; ammo_h = img_ammo->h / AMMO_BOMB;
 	img_logo = data_load_image( "logo.bmp" );
 	SDL_LockSurface( img_logo );
-	SET_CKEY( img_logo, *(Uint16*)(img_logo->pixels) );
+	SET_CKEY( img_logo, GetPixel(img_logo, 0, 0) );
 	SDL_UnlockSurface( img_logo );
 	img_icons = data_load_image( "icons.bmp" );
 	img_black = data_create_image( screen->w, screen->h );
@@ -223,7 +223,7 @@ void data_load()
 	cursor_w = img_cursors->w / CURSOR_COUNT;
 	img_gun = data_load_image( "gun.bmp" );
 	SDL_LockSurface( img_gun );
-	SET_CKEY( img_gun, *(Uint16*)(img_gun->pixels) );
+	SET_CKEY( img_gun, GetPixel(img_gun, 0, 0) );
 	SDL_UnlockSurface( img_gun );
 	gun_w = img_gun->w / 9; gun_h = img_gun->h;
 	
@@ -297,6 +297,7 @@ void data_delete()
 	data_free_sound( &wav_expl2 );
 	data_free_sound( &wav_expl3 );
 	data_free_sound( &wav_cannon1 );
+	data_free_sound( &wav_cannon2 );
 	data_free_sound( &wav_click );
 	data_free_sound( &wav_highlight );
 	printf( "%i sounds deleted\n", wav_count );

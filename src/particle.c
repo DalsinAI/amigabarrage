@@ -73,7 +73,7 @@ void particles_draw( SDL_Surface *dest, int camera_x, int camera_y )
 
 		/* add in camera check? */
 		
-		SDL_SetAlpha( part->img, SDL_SRCALPHA | SDL_RLEACCEL, (int)part->alpha );
+		barrage_set_alpha( part->img, 1, (int)part->alpha );
 		
 		SDL_BlitSurface( part->img, &srect, dest, &drect );
 	}

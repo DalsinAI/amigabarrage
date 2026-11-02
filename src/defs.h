@@ -30,6 +30,15 @@
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+
+/* SDL 1.2 used SDL_SetAlpha() to select both blending and opacity. */
+static inline int barrage_set_alpha(SDL_Surface *surface, Uint32 flags, Uint8 alpha)
+{
+	if (SDL_SetSurfaceAlphaMod(surface, alpha) < 0)
+		return -1;
+	return SDL_SetSurfaceBlendMode(surface,
+		(flags != 0) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+}
 	
 /* SDL font library created by Karl Bartel <karlb@gmx.net> */
 #include "SFont.h"
