@@ -1,0 +1,20 @@
+{
+  "about": "The Workbench icons of the Barrage drawer: python3 AMICRADLE/scripts/port_icons.py amigaos3/icons.json --out amigaos3 (DalsinAI/amicradle). The art (art/barrage.svg, drawn as an OS 3.5 GlowIcon: shaped, shaded, see-through round the edges) is The AmiCradle Team's own, under the same terms as the other Amiga files; art/barrage.png is it rendered at 128 x 128. Drawer.info is the drawer's own icon (package.sh copies it beside the drawer); Start Game.info and Start Full Screen.info are the two launchers'.",
+  "drawer": {
+    "name": "Barrage",
+    "file": "Drawer.info"
+  },
+  "badge": "art/barrage.png",
+  "icons": [
+    {
+      "file": "Start Game.info",
+      "kind": "tool",
+      "stack": 262144
+    },
+    {
+      "file": "Start Full Screen.info",
+      "kind": "tool",
+      "stack": 262144
+    }
+  ]
+}
