@@ -1,0 +1,16 @@
+{
+  "name": "Barrage",
+  "version": "1.0.4-amiga2-rc1",
+  "drawer": "Barrage",
+  "program": "Barrage",
+  "cpu": "68040",
+  "fpu": true,
+  "space": 3000000,
+  "modules": [
+    "SDL2.module",
+    "SDL2_mixer.module"
+  ],
+  "keep": [],
+  "parent": "Work:Games",
+  "badge": "../amigaos3/art/barrage.png"
+}

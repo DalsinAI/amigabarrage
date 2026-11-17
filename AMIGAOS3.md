@@ -1,6 +1,7 @@
 # Barrage for AmigaOS 3 — RC1
 
-This port targets AmigaOS 3.2 on a 68040/68881 system. It uses the existing
+This port targets AmigaOS 3.2 on a 68040 or 68060. It is one soft-float
+binary: the stove's fpuauto takes the FPU when there is one. It uses the existing
 AmigaChrome SDL2 and SDL2_mixer modules; SDL's software window surface remains
 the game's CPU-authoritative framebuffer and SDL presents it through OpenGPU.
 
@@ -16,6 +17,16 @@ The package is written to `Barrage-AmigaOS3-RC1` by default. Copy that drawer to
 the Amiga and double-click **Start Game** for the qualified windowed mode, or
 **Start Full Screen** to exercise the retained full-screen presenter. Both are
 native Workbench tools; the package does not require IconX or a shell script.
+
+## Package
+
+`package/build-amiga.sh` (Cradle's stove_build, target `package`) builds the
+same way, checks the build with `package/soft-float.sh` (no hard-float flag,
+no FPU instruction in the objects, fpuauto linked in) and makes
+`amigabarrage-VERSION-68040.lha`: the Barrage drawer and its icon, with
+`Install-Barrage` and its icon at the archive's root. `package/installer.json`
+is the Installer's spec (amicradle's `scripts/ports/port_installer.py` makes
+`package/installer/` from it). Host tests: `python3 package/tests/test_installer.py`.
 
 ## Controls
 
